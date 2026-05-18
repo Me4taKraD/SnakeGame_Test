@@ -13,11 +13,13 @@ COLOR_HEAD = "#5cb85c"
 COLOR_APPLE = "#e53935"
 COLOR_APPLE_DARK = "#c62828"
 COLOR_LEAF = "#43a047"
-COLOR_STEM = "#6d4c41"
+COLOR_STEM = "#4d362e"
 COLOR_EYE_WHITE = "#ffffff"
 COLOR_EYE_PUPIL = "#1a1a1a"
+COLOR_ROCK = "#3f3f3f"
 COLOR_SCORE = "#e8f5e9"
 
+ROCK_COUNT = 5
 
 class SnakeGame:
     def __init__(self):
@@ -44,6 +46,10 @@ class SnakeGame:
         )
         self.canvas.pack()
 
+        self.rocks = []
+        
+        self.high_score = self.load_high_score()
+        
         self.reset_game()
         self.window.bind("<KeyPress>", self.on_key_press)
         self.game_loop()
@@ -53,6 +59,7 @@ class SnakeGame:
         self.direction = "Right"
         self.next_direction = "Right"
         self.food = self.spawn_food()
+        self.spawn_rocks()
         self.game_over = False
         self.score = 0
         self.update_score_label()
@@ -65,6 +72,26 @@ class SnakeGame:
             pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
             if pos not in self.snake:
                 return pos
+            
+    def spawn_rocks(self):
+        self.rocks = []
+        for _ in range(ROCK_COUNT):
+            while True:
+                pos = (random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1))
+                if pos not in self.snake and pos not in self.rocks and pos != self.food:
+                    self.rocks.append(pos)
+                    break
+
+    def load_high_score(self):
+        try:
+            with open("highscore.txt", "r") as f:
+                return int(f.read())
+        except:
+            return 0
+
+    def save_high_score(self):
+        with open("highscore.txt", "w") as f:
+            f.write(str(self.high_score))
 
     def on_key_press(self, event):
         key = event.keysym
@@ -112,6 +139,13 @@ class SnakeGame:
 
         if new_head in self.snake:
             self.game_over = True
+            return
+
+        if new_head in self.rocks:  # ← добавить после проверки змейки
+            self.game_over = True
+            if self.score > self.high_score:
+                self.high_score = self.score
+                self.save_high_score()
             return
 
         self.snake.insert(0, new_head)
@@ -202,6 +236,15 @@ class SnakeGame:
             fill=COLOR_LEAF, outline="#2e7d32",
         )
 
+    def draw_rocks(self):
+        for x, y in self.rocks:
+            x1 = x * CELL_SIZE
+            y1 = y * CELL_SIZE
+            x2 = (x + 1) * CELL_SIZE
+            y2 = (y + 1) * CELL_SIZE
+            points = [x1 + CELL_SIZE//4, y1, x2 - CELL_SIZE//4, y1, x2, y2, x1, y2]
+            self.canvas.create_polygon(points, fill=COLOR_ROCK, outline="#1b1b1b")
+
     def draw(self):
         self.canvas.delete("all")
         for i in range(GRID_WIDTH):
@@ -218,6 +261,7 @@ class SnakeGame:
 
         fx, fy = self.food
         self.draw_apple(fx, fy)
+        self.draw_rocks()
 
         for i, (x, y) in enumerate(reversed(self.snake)):
             segment_index = len(self.snake) - 1 - i
