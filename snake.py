@@ -10,7 +10,7 @@ class SnakeGame:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("Змейка")
-        self.canvas = tk.Canvas(self.window, bg="black", width=GRID_WIDTH*CELL_SIZE, height=GRID_HEIGHT*CELL_SIZE)
+        self.canvas = tk.Canvas(self.window, bg="green", width=GRID_WIDTH*CELL_SIZE, height=GRID_HEIGHT*CELL_SIZE)
         self.canvas.pack()
         self.reset_game()
         self.window.bind("<KeyPress>", self.on_key_press)
@@ -76,6 +76,13 @@ class SnakeGame:
 
     def draw(self):
         self.canvas.delete("all")
+
+        # Сетка
+        for x in range(0, GRID_WIDTH*CELL_SIZE, CELL_SIZE):
+            self.canvas.create_line(x, 0, x, GRID_HEIGHT*CELL_SIZE, fill="#333333")
+        for y in range(0, GRID_HEIGHT*CELL_SIZE, CELL_SIZE):
+            self.canvas.create_line(0, y, GRID_WIDTH*CELL_SIZE, y, fill="#333333")
+        
         for x, y in self.snake:
             self.canvas.create_rectangle(x*CELL_SIZE, y*CELL_SIZE, 
                                         (x+1)*CELL_SIZE, (y+1)*CELL_SIZE, 
