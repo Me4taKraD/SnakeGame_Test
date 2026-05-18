@@ -9,6 +9,7 @@ SPEED = 150
 COLOR_BG = "#1a2e1a"
 COLOR_BODY = "#3d8b37"
 COLOR_BODY_DARK = "#2d6b28"
+COLOR_BODY_BLUE = "cyan"
 COLOR_HEAD = "#5cb85c"
 COLOR_APPLE = "#e53935"
 COLOR_APPLE_DARK = "#c62828"
@@ -128,7 +129,12 @@ class SnakeGame:
         self.canvas.create_oval(x1, y1, x2, y2, fill=fill, outline="#256325", width=1)
         cx, cy = self.cell_center(x, y)
         r = CELL_SIZE // 6
-        self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=COLOR_BODY_DARK, outline="")
+    # Голубой кружок через каждые 3 сегмента
+        if index % 3 == 0:
+            inner_color = "cyan"
+        else:
+            inner_color = COLOR_BODY_DARK
+        self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=inner_color, outline="")
 
     def draw_head(self, x, y):
         x1, y1, x2, y2 = self.cell_rect(x, y, margin=0)
