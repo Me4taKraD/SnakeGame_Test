@@ -103,11 +103,29 @@ class SnakeGame:
     def update_score_label(self):
         self.score_label.config(text=f"Очки: {self.score}")
 
+    def _free_cells(self, include_rocks=True):
+        blocked = set(self.snake)
+        if include_rocks:
+            blocked.update(self.rocks)
+        return [
+            (x, y)
+            for x in range(GRID_WIDTH)
+            for y in range(GRID_HEIGHT)
+            if (x, y) not in blocked
+        ]
+
     def spawn_food(self):
-        while True:
-            pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
-            if pos not in self.snake:
-                return pos
+        free_cells = self._free_cells(include_rocks=True)
+        if not free_cells:
+            free_cells = [
+                (x, y)
+                for x in range(GRID_WIDTH)
+                for y in range(GRID_HEIGHT)
+                if (x, y) not in self.snake
+            ]
+        if not free_cells:
+            return None
+        return random.choice(free_cells)
             
     def spawn_rocks(self):
         self.rocks = []
@@ -365,6 +383,8 @@ class SnakeGame:
     def choose_auto_direction(self):
         snake = self.snake
         food = self.food
+        if food is None:
+            return self.direction
         rocks = self.rocks
         current = self.direction
         all_dirs = self._valid_directions(current)
@@ -398,6 +418,8 @@ class SnakeGame:
     def move_snake(self):
         if self.game_over:
             return
+        if self.food is None:
+            self.food = self.spawn_food()
         if self.auto_mode:
             self.next_direction = self.choose_auto_direction()
         self.direction = self.next_direction
@@ -432,10 +454,12 @@ class SnakeGame:
             return
 
         self.snake.insert(0, new_head)
-        if new_head == self.food:
+        if self.food is not None and new_head == self.food:
             self.score += 1
             self.update_score_label()
-            self.food = self.spawn_food()
+            new_food = self.spawn_food()
+            if new_food is not None:
+                self.food = new_food
         else:
             self.snake.pop()
 
@@ -542,8 +566,9 @@ class SnakeGame:
                     fill=shade, outline="",
                 )
 
-        fx, fy = self.food
-        self.draw_apple(fx, fy)
+        if self.food is not None:
+            fx, fy = self.food
+            self.draw_apple(fx, fy)
         self.draw_rocks()
 
         for i, (x, y) in enumerate(reversed(self.snake)):
