@@ -4,7 +4,7 @@ import random
 CELL_SIZE = 20
 GRID_WIDTH = 30
 GRID_HEIGHT = 20
-SPEED = 200
+SPEED = 150
 
 class SnakeGame:
     def __init__(self):
