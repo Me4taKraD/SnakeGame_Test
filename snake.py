@@ -1,3 +1,7 @@
+"""
+Тесируюем пул-реквесты
+"""
+
 import tkinter as tk
 import random
 
@@ -10,7 +14,7 @@ class SnakeGame:
     def __init__(self):
         self.window = tk.Tk()
         self.window.title("Змейка")
-        self.canvas = tk.Canvas(self.window, bg="black", width=GRID_WIDTH*CELL_SIZE, height=GRID_HEIGHT*CELL_SIZE)
+        self.canvas = tk.Canvas(self.window, bg="red", width=GRID_WIDTH*CELL_SIZE, height=GRID_HEIGHT*CELL_SIZE)
         self.canvas.pack()
         self.reset_game()
         self.window.bind("<KeyPress>", self.on_key_press)
