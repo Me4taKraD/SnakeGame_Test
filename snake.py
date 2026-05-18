@@ -1,10 +1,15 @@
 import tkinter as tk
 import random
+from collections import deque
 
 CELL_SIZE = 20
 GRID_WIDTH = 30
 GRID_HEIGHT = 20
 SPEED = 150
+LOOKAHEAD_DEPTH = 3
+TRAP_PENALTY = -10000
+FOOD_DISTANCE_WEIGHT = 120
+MAX_GRID_DIST = GRID_WIDTH * GRID_HEIGHT
 
 COLOR_BG = "#1a2e1a"
 COLOR_BODY = "#3d8b37"
@@ -19,7 +24,7 @@ COLOR_EYE_PUPIL = "#1a1a1a"
 COLOR_ROCK = "#3f3f3f"
 COLOR_SCORE = "#e8f5e9"
 
-ROCK_COUNT = 5
+ROCK_COUNT = 20
 
 class SnakeGame:
     def __init__(self):
@@ -36,6 +41,25 @@ class SnakeGame:
             pady=6,
         )
         self.score_label.pack(fill="x")
+
+        self.auto_mode = True
+        self.controls_frame = tk.Frame(self.window, bg=COLOR_BG)
+        self.controls_frame.pack(fill="x", pady=(0, 4))
+        self.auto_button = tk.Button(
+            self.controls_frame,
+            text="Авто: ВЫКЛ",
+            font=("Segoe UI", 11, "bold"),
+            bg="#2d4a2d",
+            fg=COLOR_SCORE,
+            activebackground="#3d6b3d",
+            activeforeground="white",
+            relief="flat",
+            padx=12,
+            pady=4,
+            command=self.toggle_auto_mode,
+        )
+        self.auto_button.pack()
+        self._update_auto_button()
 
         self.canvas = tk.Canvas(
             self.window,
@@ -62,7 +86,19 @@ class SnakeGame:
         self.spawn_rocks()
         self.game_over = False
         self.score = 0
+        self.auto_mode = True
+        self._update_auto_button()
         self.update_score_label()
+
+    def toggle_auto_mode(self):
+        self.auto_mode = not self.auto_mode
+        self._update_auto_button()
+
+    def _update_auto_button(self):
+        if self.auto_mode:
+            self.auto_button.config(text="Авто: ВКЛ", bg="#2e7d32", fg="white")
+        else:
+            self.auto_button.config(text="Авто: ВЫКЛ", bg="#2d4a2d", fg=COLOR_SCORE)
 
     def update_score_label(self):
         self.score_label.config(text=f"Очки: {self.score}")
@@ -95,6 +131,11 @@ class SnakeGame:
 
     def on_key_press(self, event):
         key = event.keysym
+        if key in ("a", "A"):
+            self.toggle_auto_mode()
+            return
+        if self.auto_mode and not self.game_over:
+            return
         if key == "Up" and self.direction != "Down":
             self.next_direction = "Up"
         elif key == "Down" and self.direction != "Up":
@@ -114,9 +155,251 @@ class SnakeGame:
     def cell_center(self, x, y):
         return x * CELL_SIZE + CELL_SIZE // 2, y * CELL_SIZE + CELL_SIZE // 2
 
+    def _wrap(self, pos):
+        x, y = pos
+        if x < 0:
+            x = GRID_WIDTH - 1
+        elif x >= GRID_WIDTH:
+            x = 0
+        if y < 0:
+            y = GRID_HEIGHT - 1
+        elif y >= GRID_HEIGHT:
+            y = 0
+        return (x, y)
+
+    def _neighbors(self, pos):
+        x, y = pos
+        return [
+            self._wrap((x, y - 1)),
+            self._wrap((x, y + 1)),
+            self._wrap((x - 1, y)),
+            self._wrap((x + 1, y)),
+        ]
+
+    def _opposite(self, direction):
+        return {"Up": "Down", "Down": "Up", "Left": "Right", "Right": "Left"}[direction]
+
+    def _valid_directions(self, current_dir):
+        all_dirs = ["Up", "Down", "Left", "Right"]
+        if current_dir:
+            opp = self._opposite(current_dir)
+            return [d for d in all_dirs if d != opp]
+        return all_dirs
+
+    def _head_from_direction(self, head, direction):
+        x, y = head
+        if direction == "Up":
+            return self._wrap((x, y - 1))
+        if direction == "Down":
+            return self._wrap((x, y + 1))
+        if direction == "Left":
+            return self._wrap((x - 1, y))
+        return self._wrap((x + 1, y))
+
+    def _direction_from_to(self, a, b):
+        ax, ay = a
+        bx, by = b
+        if bx == ax:
+            return "Up" if by < ay else "Down"
+        return "Left" if bx < ax else "Right"
+
+    def _blocked_cells(self, snake, rocks, will_eat=False):
+        blocked = set(rocks)
+        body = snake if will_eat else snake[:-1] if len(snake) > 1 else snake
+        blocked.update(body)
+        return blocked
+
+    def _bfs_path(self, start, goal, blocked):
+        if start == goal:
+            return [start]
+        if goal in blocked:
+            return None
+        queue = deque([(start, [start])])
+        visited = {start}
+        while queue:
+            pos, path = queue.popleft()
+            for nb in self._neighbors(pos):
+                if nb in visited or nb in blocked:
+                    continue
+                new_path = path + [nb]
+                if nb == goal:
+                    return new_path
+                visited.add(nb)
+                queue.append((nb, new_path))
+        return None
+
+    def _bfs_distances(self, start, blocked):
+        dist = {start: 0}
+        queue = deque([start])
+        while queue:
+            pos = queue.popleft()
+            for nb in self._neighbors(pos):
+                if nb in blocked or nb in dist:
+                    continue
+                dist[nb] = dist[pos] + 1
+                queue.append(nb)
+        return dist
+
+    def _reachable_count(self, start, blocked):
+        if start in blocked:
+            return 0
+        visited = {start}
+        queue = deque([start])
+        while queue:
+            pos = queue.popleft()
+            for nb in self._neighbors(pos):
+                if nb not in visited and nb not in blocked:
+                    visited.add(nb)
+                    queue.append(nb)
+        return len(visited)
+
+    def _food_distance(self, head, food, blocked):
+        return self._bfs_distances(head, blocked).get(food, MAX_GRID_DIST)
+
+    def _food_distance_after_move(self, snake, direction, food, rocks):
+        result = self._simulate_step(list(snake), direction, food, rocks)
+        if result is None:
+            return MAX_GRID_DIST
+        new_snake, _, ate = result
+        head = new_snake[0]
+        blocked = self._blocked_cells(new_snake, rocks, will_eat=ate)
+        return self._food_distance(head, food, blocked)
+
+    def _is_move_safe(self, snake, direction, food, rocks):
+        result = self._simulate_step(list(snake), direction, food, rocks)
+        if result is None:
+            return False
+        new_snake, _, ate = result
+        head = new_snake[0]
+        blocked = self._blocked_cells(new_snake, rocks, will_eat=ate)
+        return self._reachable_count(head, blocked) >= len(new_snake)
+
+    def _first_steps_to_goal(self, snake, goal, rocks):
+        head = snake[0]
+        blocked = self._blocked_cells(snake, rocks, will_eat=False)
+        if goal in blocked:
+            return []
+        dist = self._bfs_distances(head, blocked)
+        if goal not in dist:
+            return []
+        directions = []
+        seen = set()
+        for nb in self._neighbors(head):
+            if nb in blocked or dist.get(nb) != 1:
+                continue
+            next_blocked = set(blocked)
+            next_blocked.add(head)
+            if self._bfs_path(nb, goal, next_blocked):
+                direction = self._direction_from_to(head, nb)
+                if direction not in seen:
+                    seen.add(direction)
+                    directions.append(direction)
+        return directions
+
+    def _simulate_step(self, snake, direction, food, rocks):
+        head = snake[0]
+        new_head = self._head_from_direction(head, direction)
+        if new_head in snake or new_head in rocks:
+            return None
+        ate = new_head == food
+        if ate:
+            new_snake = [new_head] + list(snake)
+        else:
+            new_snake = [new_head] + list(snake[:-1])
+        return new_snake, food, ate
+
+    def _evaluate_state(self, snake, food, rocks):
+        head = snake[0]
+        blocked = self._blocked_cells(snake, rocks, will_eat=False)
+        reachable = self._reachable_count(head, blocked)
+        dist_food = self._food_distance(head, food, blocked)
+        score = (MAX_GRID_DIST - dist_food) * FOOD_DISTANCE_WEIGHT
+        score += min(reachable, len(snake) * 3)
+        if reachable < len(snake):
+            score += TRAP_PENALTY
+        if dist_food == 0:
+            score += 5000
+        elif self._bfs_path(head, food, blocked):
+            score += 400
+        if len(snake) > 1 and self._bfs_path(head, snake[-1], blocked):
+            score += 80
+        return score
+
+    def _score_moves(self, snake, food, rocks, depth, current_dir=None):
+        if depth == 0:
+            return self._evaluate_state(snake, food, rocks)
+        best = float("-inf")
+        for direction in self._valid_directions(current_dir):
+            result = self._simulate_step(snake, direction, food, rocks)
+            if result is None:
+                continue
+            new_snake, new_food, _ = result
+            child = self._score_moves(new_snake, new_food, rocks, depth - 1, direction)
+            best = max(best, child)
+        return best if best > float("-inf") else TRAP_PENALTY
+
+    def _score_first_move(self, snake, food, rocks, direction, current_dir):
+        result = self._simulate_step(snake, direction, food, rocks)
+        if result is None:
+            return TRAP_PENALTY
+        new_snake, new_food, _ = result
+        remaining = LOOKAHEAD_DEPTH - 1
+        if remaining <= 0:
+            return self._evaluate_state(new_snake, new_food, rocks)
+        return self._score_moves(new_snake, new_food, rocks, remaining, direction)
+
+    def _pick_best_direction(self, snake, food, rocks, directions, fallback, prefer_food=True):
+        safe_dirs = [d for d in directions if self._is_move_safe(snake, d, food, rocks)]
+        if not safe_dirs:
+            safe_dirs = list(directions)
+
+        def sort_key(direction):
+            dist = self._food_distance_after_move(snake, direction, food, rocks)
+            lookahead = self._score_first_move(list(snake), food, rocks, direction, fallback)
+            if prefer_food:
+                return (dist, -lookahead)
+            return (-lookahead, dist)
+
+        return min(safe_dirs, key=sort_key)
+
+    def choose_auto_direction(self):
+        snake = self.snake
+        food = self.food
+        rocks = self.rocks
+        current = self.direction
+        all_dirs = self._valid_directions(current)
+        head = snake[0]
+        blocked = self._blocked_cells(snake, rocks, will_eat=False)
+
+        path = self._bfs_path(head, food, blocked)
+        if path and len(path) >= 2:
+            direct = self._direction_from_to(head, path[1])
+            if direct in all_dirs and self._is_move_safe(snake, direct, food, rocks):
+                return direct
+
+        food_steps = self._first_steps_to_goal(snake, food, rocks)
+        if food_steps:
+            safe_food = [d for d in food_steps if self._is_move_safe(snake, d, food, rocks)]
+            if safe_food:
+                return self._pick_best_direction(
+                    snake, food, rocks, safe_food, current, prefer_food=True
+                )
+
+        safe_any = [d for d in all_dirs if self._is_move_safe(snake, d, food, rocks)]
+        if safe_any:
+            return self._pick_best_direction(
+                snake, food, rocks, safe_any, current, prefer_food=True
+            )
+
+        return self._pick_best_direction(
+            snake, food, rocks, all_dirs, current, prefer_food=True
+        )
+
     def move_snake(self):
         if self.game_over:
             return
+        if self.auto_mode:
+            self.next_direction = self.choose_auto_direction()
         self.direction = self.next_direction
         head = self.snake[0]
         if self.direction == "Up":
@@ -269,6 +552,15 @@ class SnakeGame:
                 self.draw_head(x, y)
             else:
                 self.draw_body_segment(x, y, segment_index)
+
+        if self.auto_mode and not self.game_over:
+            self.canvas.create_text(
+                8, 8,
+                text="АВТО",
+                fill="#81c784",
+                font=("Segoe UI", 10, "bold"),
+                anchor="nw",
+            )
 
         if self.game_over:
             self.canvas.create_rectangle(
