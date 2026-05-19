@@ -1,11 +1,10 @@
 import tkinter as tk
 import random
 
-import os
 
 CELL_SIZE = 20
 GRID_WIDTH = 30
-GRID_HEIGHT =     20
+GRID_HEIGHT = 20
 SPEED = 150
 
 
@@ -96,7 +95,7 @@ class SnakeGame:
         try:
             with open("highscore.txt", "r") as f:
                 return int(f.read())
-        except:
+        except Exception:
             return 0
 
     def save_high_score(self):
