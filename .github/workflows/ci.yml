@@ -1,0 +1,28 @@
+name: Code Quality Check
+
+# 1. Когда запускать проверку?
+on:
+  push:
+    branches: [ "DEV_EVG_Rocks"]
+  pull_request:
+    branches: [ "DEV_EVG_Rocks"]
+
+# 2. Что именно делать?
+jobs:
+  lint-and-format:
+    runs-on: ubuntu-latest # Создаем виртуальный комп на Linux
+
+    steps:
+      # Шаг 1: Скачиваем код репозитория на этот виртуальный комп
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      # Шаг 2: Разворачиваем Python
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11" # Укажи версию, на которой вы пишете
+
+      # Шаг 3: Запускаем проверку Ruff прямо из официального экшена
+      - name: Run Ruff Check & Format
+        uses: astral-sh/ruff-action@v1
