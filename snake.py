@@ -1,10 +1,12 @@
 import tkinter as tk
 import random
 
+
 CELL_SIZE = 20
 GRID_WIDTH = 30
 GRID_HEIGHT = 20
 SPEED = 150
+
 
 COLOR_BG = "#1a2e1a"
 COLOR_BODY = "#3d8b37"
@@ -20,6 +22,7 @@ COLOR_ROCK = "#3f3f3f"
 COLOR_SCORE = "#e8f5e9"
 
 ROCK_COUNT = 5
+
 
 class SnakeGame:
     def __init__(self):
@@ -47,9 +50,9 @@ class SnakeGame:
         self.canvas.pack()
 
         self.rocks = []
-        
+
         self.high_score = self.load_high_score()
-        
+
         self.reset_game()
         self.window.bind("<KeyPress>", self.on_key_press)
         self.game_loop()
@@ -69,15 +72,21 @@ class SnakeGame:
 
     def spawn_food(self):
         while True:
-            pos = (random.randint(0, GRID_WIDTH - 1), random.randint(0, GRID_HEIGHT - 1))
+            pos = (
+                random.randint(0, GRID_WIDTH - 1),
+                random.randint(0, GRID_HEIGHT - 1),
+            )
             if pos not in self.snake:
                 return pos
-            
+
     def spawn_rocks(self):
         self.rocks = []
         for _ in range(ROCK_COUNT):
             while True:
-                pos = (random.randint(0, GRID_WIDTH-1), random.randint(0, GRID_HEIGHT-1))
+                pos = (
+                    random.randint(0, GRID_WIDTH - 1),
+                    random.randint(0, GRID_HEIGHT - 1),
+                )
                 if pos not in self.snake and pos not in self.rocks and pos != self.food:
                     self.rocks.append(pos)
                     break
@@ -86,7 +95,7 @@ class SnakeGame:
         try:
             with open("highscore.txt", "r") as f:
                 return int(f.read())
-        except:
+        except Exception:
             return 0
 
     def save_high_score(self):
@@ -162,11 +171,15 @@ class SnakeGame:
         self.canvas.create_oval(x1, y1, x2, y2, fill=fill, outline="#256325", width=1)
         cx, cy = self.cell_center(x, y)
         r = CELL_SIZE // 6
-        self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=COLOR_BODY_DARK, outline="")
+        self.canvas.create_oval(
+            cx - r, cy - r, cx + r, cy + r, fill=COLOR_BODY_DARK, outline=""
+        )
 
     def draw_head(self, x, y):
         x1, y1, x2, y2 = self.cell_rect(x, y, margin=0)
-        self.canvas.create_oval(x1, y1, x2, y2, fill=COLOR_HEAD, outline="#256325", width=2)
+        self.canvas.create_oval(
+            x1, y1, x2, y2, fill=COLOR_HEAD, outline="#256325", width=2
+        )
 
         cx, cy = self.cell_center(x, y)
         eye_offset = CELL_SIZE // 4
@@ -188,8 +201,13 @@ class SnakeGame:
 
         for ex, ey in (e1, e2):
             self.canvas.create_oval(
-                ex - eye_r, ey - eye_r, ex + eye_r, ey + eye_r,
-                fill=COLOR_EYE_WHITE, outline=COLOR_EYE_PUPIL, width=1,
+                ex - eye_r,
+                ey - eye_r,
+                ex + eye_r,
+                ey + eye_r,
+                fill=COLOR_EYE_WHITE,
+                outline=COLOR_EYE_PUPIL,
+                width=1,
             )
             if self.direction == "Right":
                 px, py = ex + pupil_r // 2, ey
@@ -200,8 +218,12 @@ class SnakeGame:
             else:
                 px, py = ex, ey + pupil_r // 2
             self.canvas.create_oval(
-                px - pupil_r, py - pupil_r, px + pupil_r, py + pupil_r,
-                fill=COLOR_EYE_PUPIL, outline="",
+                px - pupil_r,
+                py - pupil_r,
+                px + pupil_r,
+                py + pupil_r,
+                fill=COLOR_EYE_PUPIL,
+                outline="",
             )
 
         if self.direction == "Right":
@@ -212,28 +234,47 @@ class SnakeGame:
             tx, ty = cx, y1 + 2
         else:
             tx, ty = cx, y2 - 2
-        self.canvas.create_line(tx, ty, tx, ty, fill="#c62828", width=3, capstyle=tk.ROUND)
+        self.canvas.create_line(
+            tx, ty, tx, ty, fill="#c62828", width=3, capstyle=tk.ROUND
+        )
 
     def draw_apple(self, x, y):
         cx, cy = self.cell_center(x, y)
         r = CELL_SIZE // 2 - 3
         self.canvas.create_oval(
-            cx - r, cy - r + 2, cx + r, cy + r,
-            fill=COLOR_APPLE, outline=COLOR_APPLE_DARK, width=2,
+            cx - r,
+            cy - r + 2,
+            cx + r,
+            cy + r,
+            fill=COLOR_APPLE,
+            outline=COLOR_APPLE_DARK,
+            width=2,
         )
         self.canvas.create_oval(
-            cx - r // 3, cy - r // 2, cx + r // 4, cy,
-            fill="#ef5350", outline="",
+            cx - r // 3,
+            cy - r // 2,
+            cx + r // 4,
+            cy,
+            fill="#ef5350",
+            outline="",
         )
         self.canvas.create_rectangle(
-            cx - 1, cy - r - 4, cx + 1, cy - r + 2,
-            fill=COLOR_STEM, outline="",
+            cx - 1,
+            cy - r - 4,
+            cx + 1,
+            cy - r + 2,
+            fill=COLOR_STEM,
+            outline="",
         )
         self.canvas.create_polygon(
-            cx, cy - r - 6,
-            cx + 6, cy - r - 1,
-            cx - 2, cy - r,
-            fill=COLOR_LEAF, outline="#2e7d32",
+            cx,
+            cy - r - 6,
+            cx + 6,
+            cy - r - 1,
+            cx - 2,
+            cy - r,
+            fill=COLOR_LEAF,
+            outline="#2e7d32",
         )
 
     def draw_rocks(self):
@@ -242,7 +283,7 @@ class SnakeGame:
             y1 = y * CELL_SIZE
             x2 = (x + 1) * CELL_SIZE
             y2 = (y + 1) * CELL_SIZE
-            points = [x1 + CELL_SIZE//4, y1, x2 - CELL_SIZE//4, y1, x2, y2, x1, y2]
+            points = [x1 + CELL_SIZE // 4, y1, x2 - CELL_SIZE // 4, y1, x2, y2, x1, y2]
             self.canvas.create_polygon(points, fill=COLOR_ROCK, outline="#1b1b1b")
 
     def draw(self):
@@ -254,9 +295,12 @@ class SnakeGame:
                 else:
                     shade = "#1a2e1a"
                 self.canvas.create_rectangle(
-                    i * CELL_SIZE, j * CELL_SIZE,
-                    (i + 1) * CELL_SIZE, (j + 1) * CELL_SIZE,
-                    fill=shade, outline="",
+                    i * CELL_SIZE,
+                    j * CELL_SIZE,
+                    (i + 1) * CELL_SIZE,
+                    (j + 1) * CELL_SIZE,
+                    fill=shade,
+                    outline="",
                 )
 
         fx, fy = self.food
@@ -272,8 +316,12 @@ class SnakeGame:
 
         if self.game_over:
             self.canvas.create_rectangle(
-                0, 0, GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE,
-                fill="#000000", stipple="gray50",
+                0,
+                0,
+                GRID_WIDTH * CELL_SIZE,
+                GRID_HEIGHT * CELL_SIZE,
+                fill="#000000",
+                stipple="gray50",
             )
             self.canvas.create_text(
                 GRID_WIDTH * CELL_SIZE // 2,

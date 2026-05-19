@@ -1,0 +1,9 @@
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.4.4
+    hooks:
+      # 1. Линтер (проверяет ошибки, убирает неиспользуемые импорты)
+      - id: ruff
+        args: [ --fix ]
+      # 2. Форматтер (причесывает отступы и кавычки по стандарту)
+      - id: ruff-format

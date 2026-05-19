@@ -1,3 +1,4 @@
 index.html
 run_snake.bat
 __pycache__/
+.ruff_cache/
